@@ -19,7 +19,7 @@
     .form { display:grid; grid-template-columns:2fr 1.2fr 1fr auto; gap:12px; align-items:end; }
     label { display:block; font-size:13px; font-weight:700; margin-bottom:7px; }
     input { width:100%; min-height:48px; border:1px solid #c7d3d0; border-radius:10px; padding:10px 12px; font:inherit; color:var(--ink); background:white; }
-    button { min-height:48px; border:0; border-radius:10px; padding:0 20px; background:var(--green); color:white; font:700 15px inherit; cursor:pointer; }
+    button { min-height:48px; border:0; border-radius:10px; padding:0 20px; background:var(--green); color:white; font:700 15px system-ui,sans-serif; cursor:pointer; }
     button:disabled { opacity:.6; cursor:wait; }
     .tip { color:var(--muted); font-size:13px; margin:12px 0 0; }
     #status { min-height:28px; margin:14px 0 0; font-weight:650; }
@@ -45,7 +45,7 @@
   <main>
     <div class="eyebrow">A live market snapshot for small sellers</div>
     <h1>Know what similar products cost nearby.</h1>
-    <p class="intro">Search Google Shopping for a specific product and city. Compare the listings and draft a truthful product description from your own confirmed facts.</p>
+    <p class="intro">Search Google Shopping for a specific product and city. Compare visible listings and see how your entered price sits beside that sample.</p>
     <section class="panel" aria-label="Product search">
       <form id="search-form" class="form">
         <div class="wide"><label for="query">Product and exact size/model</label><input id="query" name="q" maxlength="120" required placeholder="Example: 1 kg basmati rice" autocomplete="off"></div>
