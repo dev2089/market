@@ -123,8 +123,8 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "ShopSignal/0.1"
 
     def log_message(self, fmt: str, *args) -> None:
-        # Avoid logging search terms or request query strings.
-        print(f"{self.log_date_time_string()} {self.address_string()} {fmt % args}")
+        # Never log request lines: they contain product and location search terms.
+        print(f"{self.log_date_time_string()} {self.address_string()} request")
 
     def send_json(self, status: int, payload: dict) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
