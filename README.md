@@ -19,3 +19,6 @@ This is a manual offer, not an automated checkout. After your UPI app confirms t
 
 This kit is a writing aid. It does not guarantee sales or provide legal/food-safety advice. Replace placeholders only with details the business owner confirms.
 
+## ShopSignal companion
+
+[`shopsignal/`](shopsignal/README.md) is a separate local app that uses SerpApi Google Shopping results to create a city-targeted price snapshot for small sellers. It is a research aid, not a revenue promise, and requires the user's own SerpApi key. It has not been submitted to the SerpApi hackathon.

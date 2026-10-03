@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b22">
+  <title>ShopSignal — local price snapshot</title>
+  <style>
+    :root { color-scheme: light; --ink:#15252c; --muted:#617177; --line:#dce5e4; --paper:#f4f7f3; --card:#fff; --green:#176f5a; --lime:#d9f281; --orange:#f2a560; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
+    header { background:#101b22; color:#f5f8f5; padding:22px max(20px,calc((100vw - 1040px)/2)); }
+    .brand { font-size:14px; letter-spacing:.16em; text-transform:uppercase; color:var(--lime); font-weight:750; }
+    main { max-width:1040px; margin:0 auto; padding:44px 20px 80px; }
+    .eyebrow { color:var(--green); font-size:13px; font-weight:750; letter-spacing:.13em; text-transform:uppercase; }
+    h1 { font-size:clamp(36px,7vw,64px); line-height:1; letter-spacing:-.055em; max-width:760px; margin:14px 0 18px; }
+    .intro { max-width:700px; color:var(--muted); font-size:18px; }
+    .panel { margin-top:30px; background:var(--card); border:1px solid var(--line); border-radius:22px; padding:24px; box-shadow:0 14px 40px #15252c0b; }
+    .form { display:grid; grid-template-columns:2fr 1.2fr 1fr auto; gap:12px; align-items:end; }
+    label { display:block; font-size:13px; font-weight:700; margin-bottom:7px; }
+    input { width:100%; min-height:48px; border:1px solid #c7d3d0; border-radius:10px; padding:10px 12px; font:inherit; color:var(--ink); background:white; }
+    button { min-height:48px; border:0; border-radius:10px; padding:0 20px; background:var(--green); color:white; font:700 15px system-ui,sans-serif; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:wait; }
+    .tip { color:var(--muted); font-size:13px; margin:12px 0 0; }
+    #status { min-height:28px; margin:14px 0 0; font-weight:650; }
+    #status.error { color:#a43324; }
+    .summary { display:none; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:20px; }
+    .metric { border-radius:13px; background:#eef4ed; padding:16px; }
+    .metric span { display:block; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
+    .metric strong { display:block; margin-top:4px; font-size:23px; }
+    #results { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:18px; }
+    .product { border:1px solid var(--line); border-radius:14px; padding:17px; background:#fff; min-width:0; }
+    .product h3 { font-size:16px; line-height:1.3; margin:0 0 10px; }
+    .price { font-size:20px; font-weight:800; }
+    .seller { color:var(--muted); font-size:13px; margin-top:3px; }
+    .product a { display:inline-block; margin-top:12px; color:var(--green); font-weight:700; }
+    .disclaimer { margin-top:22px; color:var(--muted); font-size:13px; }
+    footer { border-top:1px solid var(--line); padding-top:16px; margin-top:28px; color:var(--muted); font-size:13px; }
+    @media(max-width:760px) { .form { grid-template-columns:1fr 1fr; } .form .wide { grid-column:1/-1; } }
+    @media(max-width:520px) { main { padding-top:32px; } .panel { padding:17px; } .form { grid-template-columns:1fr; } .form .wide { grid-column:auto; } .summary { grid-template-columns:1fr; } #results { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header><div class="brand">ShopSignal / field note 001</div></header>
+  <main>
+    <div class="eyebrow">A live market snapshot for small sellers</div>
+    <h1>Know what similar products cost nearby.</h1>
+    <p class="intro">Search Google Shopping for a specific product and city. Compare visible listings and see how your entered price sits beside that sample.</p>
+    <section class="panel" aria-label="Product search">
+      <form id="search-form" class="form">
+        <div class="wide"><label for="query">Product and exact size/model</label><input id="query" name="q" maxlength="120" required placeholder="Example: 1 kg basmati rice" autocomplete="off"></div>
+        <div><label for="location">City or region</label><input id="location" name="location" maxlength="100" value="Mumbai, India" required></div>
+        <div><label for="own-price">Your price (optional)</label><input id="own-price" type="number" min="0" step="0.01" placeholder="₹ price"></div>
+        <button id="submit" type="submit">Compare prices</button>
+      </form>
+      <p class="tip">Use an exact size or model for a more useful comparison. SerpApi search credits are used only when the query is not served from this app’s one-hour cache.</p>
+      <p id="status" role="status" aria-live="polite"></p>
+      <div id="summary" class="summary" aria-label="Price summary">
+        <div class="metric"><span>Listings with numeric prices</span><strong id="count">—</strong></div>
+        <div class="metric"><span>Median listed price</span><strong id="median">—</strong></div>
+        <div class="metric"><span>Observed range</span><strong id="range">—</strong></div>
+      </div>
+      <div id="results"></div>
+      <p id="currency-note" class="disclaimer" hidden></p>
+    </section>
+    <footer>Research aid only. Search listings may be mismatched, sponsored, outdated, or exclude shipping and taxes. Verify each seller, size, condition, availability, and currency yourself. This does not set your price or guarantee sales.</footer>
+  </main>
+  <script>
+    const form = document.querySelector('#search-form');
+    const button = document.querySelector('#submit');
+    const status = document.querySelector('#status');
+    const results = document.querySelector('#results');
+    const summary = document.querySelector('#summary');
+    const note = document.querySelector('#currency-note');
+
+    function text(tag, value, className) {
+      const node = document.createElement(tag);
+      node.textContent = value ?? '';
+      if (className) node.className = className;
+      return node;
+    }
+
+    function money(value) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) return 'not listed';
+      return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(value);
+    }
+
+    function showProducts(data, ownPrice) {
+      results.replaceChildren();
+      for (const item of data.products || []) {
+        const card = document.createElement('article');
+        card.className = 'product';
+        card.append(text('h3', item.title || 'Untitled listing'));
+        card.append(text('div', item.price || 'Price not listed', 'price'));
+        card.append(text('div', item.seller || 'Seller not named', 'seller'));
+        if (item.rating != null) card.append(text('div', `Rating shown: ${item.rating}${item.reviews != null ? ` · ${item.reviews} reviews` : ''}`, 'seller'));
+        if (item.snippet) card.append(text('p', item.snippet, 'seller'));
+        if (item.url) {
+          const link = document.createElement('a');
+          link.href = item.url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = 'Open listing ↗';
+          card.append(link);
+        }
+        results.append(card);
+      }
+
+      const count = data.price_sample_count || 0;
+      document.querySelector('#count').textContent = String(count);
+      document.querySelector('#median').textContent = count ? money(data.median_price) : 'No numeric prices';
+      document.querySelector('#range').textContent = count ? `${money(data.min_price)} – ${money(data.max_price)}` : '—';
+      summary.style.display = 'grid';
+      note.hidden = false;
+      const price = Number(ownPrice);
+      const relative = count && Number.isFinite(price) && price > 0
+        ? ` Your entered price is ${price < data.median_price ? 'below' : price > data.median_price ? 'above' : 'at'} this sample median. This comparison does not account for product match, shipping, quality, or taxes.`
+        : '';
+      note.textContent = `${data.currency_context || ''}${relative} Snapshot: ${data.fetched_at || 'time unavailable'}${data.cached ? ' (cached)' : ''}.`;
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const query = document.querySelector('#query').value.trim();
+      const location = document.querySelector('#location').value.trim();
+      const ownPrice = document.querySelector('#own-price').value;
+      button.disabled = true;
+      status.className = '';
+      status.textContent = 'Searching current listings…';
+      results.replaceChildren();
+      summary.style.display = 'none';
+      note.hidden = true;
+      try {
+        const params = new URLSearchParams({ q: query, location });
+        const response = await fetch(`/api/search?${params.toString()}`, { headers: { Accept: 'application/json' } });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `Search failed (${response.status}).`);
+        showProducts(data, ownPrice);
+        status.textContent = data.products?.length ? `Found ${data.products.length} listings for “${data.query}” near ${data.location}.` : 'No listings came back. Try a more specific product query.';
+      } catch (error) {
+        status.className = 'error';
+        status.textContent = error.message || 'Search failed. Please try again.';
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
